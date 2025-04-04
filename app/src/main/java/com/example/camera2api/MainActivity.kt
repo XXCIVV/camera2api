@@ -4,6 +4,7 @@ import android.Manifest
 import android.os.Bundle
 import android.widget.Button
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
@@ -13,11 +14,11 @@ import retrofit2.Response
 import android.hardware.camera2.CameraManager
 import android.util.Log
 import android.view.TextureView
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import androidx.annotation.RequiresPermission
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import com.example.camera2api.ui.theme.ProcessedImageResponse
 
 class MainActivity : AppCompatActivity() {
@@ -25,8 +26,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var imageView: ImageView
     private lateinit var captureButton: Button
     private lateinit var cameraHandler: CameraHandler
+    private val firebaseHelper = FirebaseHelper()
 
-    @RequiresPermission(Manifest.permission.CAMERA)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -70,12 +71,46 @@ class MainActivity : AppCompatActivity() {
                     if (response.isSuccessful) {
                         val responseBody = response.body()
                         Log.d("ServerResponse", "✅ Image uploaded. Response: $responseBody")
+
+                        // Fetch the results from Firebase Storage (Get detection data)
+                        val firebaseUrl = responseBody?.firebase_url
+                        if (firebaseUrl != null) {
+                            fetchDetectionResults(firebaseUrl)
+                        } else {
+                            Log.e("ServerResponse", "❌ Firebase URL is null")
+                            Toast.makeText(this@MainActivity, "❌ Firebase URL is missing", Toast.LENGTH_LONG).show()
+                        }
+
                     } else {
                         Log.e("ServerResponse", "❌ Upload failed: ${response.errorBody()?.string()}")
+                        Toast.makeText(this@MainActivity, "❌ Upload failed", Toast.LENGTH_LONG).show()
                     }
                 }
             } catch (e: Exception) {
                 Log.e("ServerResponse", "❌ Error: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "❌ Error uploading image", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    // Fetch detection results from Firebase
+    private fun fetchDetectionResults(firebaseUrl: String) {
+        // For now, we'll just log the URL and show a message
+        Log.d("MainActivity", "✅ Firebase URL: $firebaseUrl")
+        Toast.makeText(this, "Detection data URL: $firebaseUrl", Toast.LENGTH_LONG).show()
+    }
+
+    // Handle permission result
+    @RequiresPermission(Manifest.permission.CAMERA)
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 100) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                setupCamera()
+            } else {
+                Toast.makeText(this, "❌ Camera permission denied", Toast.LENGTH_LONG).show()
             }
         }
     }

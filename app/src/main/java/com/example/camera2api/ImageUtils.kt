@@ -2,18 +2,19 @@ package com.example.camera2api
 
 import android.graphics.Bitmap
 import java.io.ByteArrayOutputStream
-import okhttp3.MediaType
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
-import okhttp3.RequestBody
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
 
 object ImageUtils {
     fun bitmapToMultipart(bitmap: Bitmap): MultipartBody.Part {
         val byteArrayOutputStream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, byteArrayOutputStream)
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, byteArrayOutputStream)
         val byteArray = byteArrayOutputStream.toByteArray()
 
-        val requestBody = RequestBody.create("image/jpeg".toMediaTypeOrNull(), byteArray)
+
+        val requestBody = byteArray.toRequestBody("image/jpeg".toMediaTypeOrNull())
+
         return MultipartBody.Part.createFormData("file", "image.jpg", requestBody)
     }
 }
