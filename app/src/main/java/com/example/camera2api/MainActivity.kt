@@ -1,7 +1,6 @@
 package com.example.camera2api
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.os.Bundle
 import android.widget.Button
 import android.widget.ImageView
@@ -15,7 +14,10 @@ import android.hardware.camera2.CameraManager
 import android.util.Log
 import android.view.TextureView
 import androidx.annotation.RequiresPermission
-import androidx.core.graphics.drawable.toBitmap
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import com.example.camera2api.ui.theme.ProcessedImageResponse
 
 class MainActivity : AppCompatActivity() {
@@ -23,7 +25,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var imageView: ImageView
     private lateinit var captureButton: Button
     private lateinit var cameraHandler: CameraHandler
-    private lateinit var firebaseHelper: FirebaseHelper
 
     @RequiresPermission(Manifest.permission.CAMERA)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,59 +35,47 @@ class MainActivity : AppCompatActivity() {
         imageView = findViewById(R.id.imageView)
         captureButton = findViewById(R.id.captureButton)
 
-        firebaseHelper = FirebaseHelper()
+        // Request camera permissions
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), 100)
+        } else {
+            setupCamera()
+        }
 
+        captureButton.setOnClickListener {
+            cameraHandler.captureImage()
+        }
+    }
+
+    @RequiresPermission(Manifest.permission.CAMERA)
+    private fun setupCamera() {
         cameraHandler = CameraHandler(
             cameraManager = getSystemService(CAMERA_SERVICE) as CameraManager,
             textureView = textureView,
             imageView = imageView,
-            captureButtonClickListener = { captureImage() } // Pass the captureImage function here
+            onImageCaptured = { bitmap ->
+                uploadImageToServer(bitmap)
+            }
         )
-
         cameraHandler.setupCamera()
     }
 
-    private fun captureImage() {
-        // Upload image to server
+    private fun uploadImageToServer(bitmap: Bitmap) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val bitmap = imageView.drawable.toBitmap()
                 val imagePart = ImageUtils.bitmapToMultipart(bitmap)
                 val response: Response<ProcessedImageResponse> = RetrofitClient.apiService.uploadImage(imagePart)
 
                 withContext(Dispatchers.Main) {
                     if (response.isSuccessful) {
                         val responseBody = response.body()
-                        val firebaseUrl = responseBody?.firebase_url
-
-                        // Log full response for debugging
-                        Log.d("ServerResponse", "Full Response: $responseBody")
-
-                        responseBody?.let {
-                            // Log detections data from responseBody
-                            Log.d("ServerResponse", "Detections: ${it.detection_data.detections}")
-
-                            // Fetch detection result from Firebase
-                            if (firebaseUrl != null) {
-                                firebaseHelper.fetchResultFromFirebase(firebaseUrl) { jsonResult ->
-                                    if (jsonResult != null) {
-                                        // Process and display the detections
-                                        Log.d("MainActivity", "✅ Detection Result: $jsonResult")
-                                    } else {
-                                        Log.e("MainActivity", "❌ Failed to fetch JSON from Firebase")
-                                    }
-                                }
-                            } else {
-                                Log.e("MainActivity", "❌ Firebase URL is null")
-                            }
-                        }
+                        Log.d("ServerResponse", "✅ Image uploaded. Response: $responseBody")
                     } else {
-                        val errorBody = response.errorBody()?.string()
-                        Log.e("ServerResponse", "Failed: HTTP ${response.code()} - $errorBody")
+                        Log.e("ServerResponse", "❌ Upload failed: ${response.errorBody()?.string()}")
                     }
                 }
             } catch (e: Exception) {
-                Log.e("ServerResponse", "Error: ${e.message}", e)
+                Log.e("ServerResponse", "❌ Error: ${e.message}", e)
             }
         }
     }
