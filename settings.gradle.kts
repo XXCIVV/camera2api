@@ -21,3 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "camera2api"
 include(":app")
+include(":opencv")

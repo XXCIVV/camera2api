@@ -4,37 +4,37 @@ import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
 import android.util.Log
 import org.json.JSONObject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class FirebaseHelper {
     private val storage = FirebaseStorage.getInstance()
     private val storageRef = storage.reference
 
-    fun fetchResultFromFirebase(filePath: String, callback: (JSONObject?) -> Unit) {
-        val fileRef: StorageReference = storageRef.child(filePath)
-
-        fileRef.getStream().addOnSuccessListener { taskSnapshot ->
+    // Fetch result from Firebase and return as a JSONObject
+    suspend fun fetchResultFromFirebase(filePath: String): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            val fileRef: StorageReference = storageRef.child(filePath)
             try {
+                val taskSnapshot = fileRef.getStream().await()
                 taskSnapshot.stream.use { inputStream ->
                     val jsonContent = inputStream.bufferedReader().use { it.readText() }
 
                     if (jsonContent.isEmpty()) {
                         Log.e("FirebaseHelper", "❌ JSON file is empty")
-                        callback(null)
-                        return@addOnSuccessListener
+                        return@withContext null
                     }
 
                     // Convert to JSON Object
                     val jsonObject = JSONObject(jsonContent)
                     Log.d("FirebaseHelper", "✅ Detection Results: $jsonObject")
-                    callback(jsonObject)
+                    return@withContext jsonObject
                 }
             } catch (e: Exception) {
-                Log.e("FirebaseHelper", "❌ Error parsing JSON", e)
-                callback(null)
+                Log.e("FirebaseHelper", "❌ Error fetching or parsing JSON from Firebase", e)
+                return@withContext null
             }
-        }.addOnFailureListener { exception ->
-            Log.e("FirebaseHelper", "❌ Failed to fetch file from Firebase", exception)
-            callback(null)
         }
     }
 }

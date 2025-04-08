@@ -19,6 +19,7 @@ import android.graphics.Bitmap
 import androidx.annotation.RequiresPermission
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.example.camera2api.ImageUtils.drawBoundingBoxes
 import com.example.camera2api.ui.theme.ProcessedImageResponse
 
 class MainActivity : AppCompatActivity() {
@@ -75,7 +76,7 @@ class MainActivity : AppCompatActivity() {
                         // Fetch the results from Firebase Storage (Get detection data)
                         val firebaseUrl = responseBody?.firebase_url
                         if (firebaseUrl != null) {
-                            fetchDetectionResults(firebaseUrl)
+                            fetchDetectionResults(firebaseUrl, bitmap)
                         } else {
                             Log.e("ServerResponse", "❌ Firebase URL is null")
                             Toast.makeText(this@MainActivity, "❌ Firebase URL is missing", Toast.LENGTH_LONG).show()
@@ -96,8 +97,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     // Fetch detection results from Firebase
-    private fun fetchDetectionResults(firebaseUrl: String) {
-        // For now, we'll just log the URL and show a message
+    private fun fetchDetectionResults(firebaseUrl: String, capturedBitmap: Bitmap) {
+        lifecycleScope.launch {
+            val detectionData = firebaseHelper.fetchResultFromFirebase(firebaseUrl)
+
+            if (detectionData != null) {
+                // Process detectionData and draw bounding boxes on the captured image
+                Log.d("MainActivity", "Detection data received: $detectionData")
+
+                // Draw bounding boxes on the captured image
+                val processedBitmap = drawBoundingBoxes(capturedBitmap, detectionData)
+
+                // Display the image with bounding boxes
+                imageView.setImageBitmap(processedBitmap)
+            } else {
+                Toast.makeText(this@MainActivity, "❌ Error fetching detection results", Toast.LENGTH_LONG).show()
+            }
+        }
         Log.d("MainActivity", "✅ Firebase URL: $firebaseUrl")
         Toast.makeText(this, "Detection data URL: $firebaseUrl", Toast.LENGTH_LONG).show()
     }
