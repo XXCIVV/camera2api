@@ -12,13 +12,12 @@
         android:layout_height="0dp"
         android:layout_weight="1" />
 
-    <!-- Capture Button -->
-    <Button
-        android:id="@+id/captureButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Capture Image"
-        android:layout_margin="16dp" />
+    <org.opencv.android.JavaCameraView
+        android:id="@+id/cameraView"
+        android:layout_width="1px"
+        android:layout_height="1px"
+        android:layout_weight="0"
+        android:visibility="visible"/>
 
     <!-- Captured Image Preview -->
     <ImageView
@@ -28,5 +27,23 @@
         android:layout_weight="1"
         android:scaleType="fitCenter"
         android:contentDescription="Captured Image" />
+
+    <LinearLayout
+        style="?android:attr/buttonBarStyle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <!-- Capture Button -->
+        <Button
+            android:id="@+id/captureButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="8dp"
+            android:text="Capture Image" />
+
+    </LinearLayout>
 
 </LinearLayout>
